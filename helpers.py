@@ -92,32 +92,44 @@ def loadModel(name, dim, step, loss):
         model.add(LSTM(16, input_shape=(step, dim[0])))
         model.add(Dense(dim[1]))
         model.compile(loss=loss, optimizer='rmsprop')
-    elif name == "VAE":
+    elif name == "BiLSTM":
+        model.add(Bidirectional(LSTM(16), input_shape=(step, dim), merge_mode='sum'))
+        model.add(Dense(dim, activation="relu"))
         model.compile(loss=loss, optimizer='rmsprop')
+    elif name == "GRU":
+        model.add(GRU(16, input_shape=(step, dim)))
+        model.add(Dense(dim))
+        model.compile(loss=loss, optimizer='rmsprop')  
     model.summary()
     
     return model
 
-def formatData(data_dict, step, desc):
+def formatData(list_dict, step, desc):
     #Les données doivent arriver au bon format et être de même dimension
     
-    values = array(list(data_dict.values()))
+    nb_country = len(list_dict)
+    
+    _ = list(list_dict[0].values())
     predictible = list(desc.values())
     
-    l = len(values[0])
-    n_in = len(values)
+    l = len(_[0])
+    n_in = len(_)
     n_out = sum(predictible)
     
-    X = zeros((l-step, step, n_in))
-    Y = zeros((l-step, n_out))
+    X = zeros(((l-step)*nb_country, step, n_in))
+    Y = zeros(((l-step)*nb_country, n_out))
     
-    for i in range(l - step):
-        for j in range(n_in):
-            X[i,:,j] = values[j, i:i+step]
-            
-        Y[i] = values[predictible, i+step]
-    
-    return X, Y
+    for n, data_dict in enumerate(list_dict):
+        
+        values = array(list(data_dict.values()))
+
+        for i in range(l - step):
+            for j in range(n_in):
+                X[n*(l - step) + i,:,j] = values[j, i:i+step]
+
+            Y[n*(l - step) + i] = values[predictible, i+step]
+
+        return X, Y
 
 def loadOwid(path, country, data_desctription, window=(0,-1)):
     
